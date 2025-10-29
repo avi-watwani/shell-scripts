@@ -9,7 +9,18 @@ URL_EXPIRATION=900
 
 # 1. Fetch a random object key from the bucket
 echo "Fetching a random object from bucket: $BUCKET_NAME..."
-RANDOM_KEY=$(aws s3api list-objects-v2 --bucket "$BUCKET_NAME" --query "Contents[].Key" --output json | jq -r '.[]' | shuf -n 1)
+
+# Cross-platform random selection
+if command -v shuf &> /dev/null; then
+  # Linux: use shuf
+  RANDOM_KEY=$(aws s3api list-objects-v2 --bucket "$BUCKET_NAME" --query "Contents[].Key" --output json | jq -r '.[]' | shuf -n 1)
+elif command -v gshuf &> /dev/null; then
+  # macOS with GNU coreutils: use gshuf
+  RANDOM_KEY=$(aws s3api list-objects-v2 --bucket "$BUCKET_NAME" --query "Contents[].Key" --output json | jq -r '.[]' | gshuf -n 1)
+else
+  # macOS/BSD: use sort -R (random sort)
+  RANDOM_KEY=$(aws s3api list-objects-v2 --bucket "$BUCKET_NAME" --query "Contents[].Key" --output json | jq -r '.[]' | sort -R | head -n 1)
+fi
 
 # 2. Check if an object key was actually found
 if [[ -z "$RANDOM_KEY" ]]; then
